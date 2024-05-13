@@ -10,7 +10,19 @@ This is a [LlamaIndex](https://www.llamaindex.ai/) project bootstrapped with [`c
 
 The backend code of this application has been modified as below;
 
+### weaviate
+```
+docker run -p 8080:8080 -p 50051:50051 cr.weaviate.io/semitechnologies/weaviate:1.25.0
+```
+### ollama
+```
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
 1. Loading the Vector Store Index created previously in the **Retrieval-Augmented Generation (RAG) Bootstrap Application** in response to user queries submitted through the frontend UI.
+
+
+
    -   Refer backend/app/utils/index.py and the code comments to understand the modifications.
 2. Querying the index with streaming enabled 
    -   Refer backend/app/api/routers/chat.py and the code comments to understand the modifications.
