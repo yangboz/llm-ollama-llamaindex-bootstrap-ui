@@ -85,12 +85,17 @@ class Response(BaseModel):
         )
         return index
 
-##@more：https://github.com/yangboz/local-rag-llamaindex/tree/master
-@app.post("/api/search", response_model=Response, status_code=200)
-def search(query: Query):
 
-    query_engine = self.qdrant_index.as_query_engine(similarity_top_k=query.similarity_top_k, output=Response, response_mode="tree_summarize", verbose=True)
-    response = query_engine.query(query.query + a)
+# ##@more：https://github.com/yangboz/local-rag-llamaindex/tree/master
+# @app.post("/api/search", response_model=Response, status_code=200)
+# def search_source(query: Query):
+
+def get_search_source(query_str,similarity_top_k):
+
+    my_query = Query(query_str,similarity_top_k)
+    index = Depends(get_index)
+    query_engine = index.as_query_engine(similarity_top_k=my_query.similarity_top_k, output=Response, response_mode="tree_summarize", verbose=True)
+    response = query_engine.query(query.query_str + a)
     response_object = Response(
         search_result=str(response).strip(), source=[response.metadata[k]["file_path"] for k in response.metadata.keys()][0]
     )
@@ -98,12 +103,65 @@ def search(query: Query):
     json_response_object = json.dumps(response_object)
     print("###json_response_object:",json_response_object)
     return response_object
-
-
+    )
 logging.info("app initialized.")
 # record_timing(app, note="")
 
+@r.post("")
+async def chat(
+            request: Request,
+            # Note: To support clients sending a JSON object using content-type "text/plain",
+            # we need to use Depends(json_to_model(_ChatData)) here
+            data: _ChatData = Depends(json_to_model(_ChatData)),
+            index: VectorStoreIndex = Depends(get_index),
+            response_model=Response, status_code=200
+            ):
+# check preconditions and get last message
+if len(data.messages) == 0:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="No messages provided",
+    )
+lastMessage = data.messages.pop()
+print("###lastMessage:",lastMessage)
+if lastMessage.role != MessageRole.USER:
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Last message must be from user",
+    )
+# convert messages coming from the request to type ChatMessage
+messages = [
+    ChatMessage(
+        role=m.role,
+        content=m.content,
+        
+    )
+    for m in data.messages
+]
 
+# query chat engine with streaming enabled.
+# chat_engine = index.as_query_engine(streaming=True, similarity_top_k=query.similarity_top_k, output=Response, response_mode="tree_sum")
+# response = chat_engine.query(lastMessage.content)
 
+# response = query_engine.query(query.query + a)
+# response_object = Response(
+#     search_result=str(response).strip(), source=[response.metadata[k]["file_path"] for k in response.metadata.keys()][0]
+# )
+# return response_object
+# print("##chat_engine_response_object:",response_object)
+
+# query chat engine with streaming enabled.
+chat_engine = index.as_query_engine(streaming=True)
+response = chat_engine.query(lastMessage.content)
+print("###chat_respose:",response)
+async def event_generator():
+    for token in response.response_gen:
+        # If client closes connection, stop sending events
+        if await request.is_disconnected():
+            break
+        yield token
+record_timing(request, note="tyllmwebchat")
+# record_timing(note="tyllmwebchat")
+return StreamingResponse(event_generator(), media_type="text/plain")
 if __name__ == "__main__":
     uvicorn.run(app="main:app", host="0.0.0.0", reload=True)
