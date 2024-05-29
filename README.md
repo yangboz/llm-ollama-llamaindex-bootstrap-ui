@@ -35,8 +35,27 @@ Second, run the development server of the frontend as described in the [frontend
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+##known issues
+
+```
+TypeError: SentenceTransformer.__init__() got an unexpected keyword argument 'trust_remote_code'
+```
+### workaround
+
+1.
+```
+poetry install 
+```
+2.
+```
+uninstall llama-index
+```
+3.
+```
+pip install llama-index --upgrade --no-cache-dir --force-reinstall
+```
 # License
 
 Apache 2.0
 
-~ Tyrell Perera 
+~ original Tyrell Perera 
